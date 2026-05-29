@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parallax — The Geometry of Perspective</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #06060a;
+    --surface: #0b0d12;
+    --hairline: rgba(232, 234, 237, 0.08);
+    --hairline-strong: rgba(232, 234, 237, 0.16);
+    --fg: #e8eaed;
+    --muted: #8a92a3;
+    --dim: #5a6072;
+    --cyan: #7dd3fc;
+    --rose: #f87171;
+    --gold: #f5b544;
+    --green: #4ade80;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--canvas);
+    color: var(--fg);
+    font-family: "Geist", system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .mono {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .micro {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--hairline);
+    width: 100%;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    height: 100vh;
+    min-height: 720px;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 0%, transparent 50%, var(--canvas) 100%),
+      linear-gradient(to bottom, transparent 70%, var(--canvas) 100%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--hairline) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hairline) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 5;
+    text-align: center;
+    padding: 0 24px;
+    max-width: 1100px;
+  }
+
+  .hero-eyebrow {
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fade-in 1.4s var(--ease) 0.4s forwards;
+  }
+
+  .parallax-word {
+    position: relative;
+    display: inline-block;
+    font-family: "Geist", sans-serif;
+    font-size: clamp(64px, 13vw, 200px);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+    margin-bottom: 40px;
+    opacity: 0;
+    animation: fade-in 1.8s var(--ease) 0.7s forwards;
+  }
+
+  .parallax-word .layer {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    transition: transform 0.4s var(--ease);
+    will-change: transform;
+  }
+
+  .parallax-word .layer.fg { position: relative; color: var(--fg); }
+  .parallax-word .layer.cyan { color: var(--cyan); mix-blend-mode: screen; opacity: 0.55; }
+  .parallax-word .layer.rose { color: var(--rose); mix-blend-mode: screen; opacity: 0.55; }
+
+  .hero-sub {
+    font-size: clamp(15px, 1.4vw, 18px);
+    color: var(--muted);
+    max-width: 560px;
+    margin: 0 auto;
+    line-height: 1.7;
+    opacity: 0;
+    animation: fade-in 1.4s var(--ease) 1.1s forwards;
+  }
+
+  .hero-sub em {
+    color: var(--fg);
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    color: var(--dim);
+    font-family: "Geist Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fade-in 1.4s var(--ease) 1.6s forwards;
+  }
+
+  .scroll-hint::after {
+    content: "";
+    display: block;
+    margin: 12px auto 0;
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--dim), transparent);
+    animation: scroll-pulse 2.4s var(--ease) infinite;
+  }
+
+  /* ---------- MOVEMENTS ---------- */
+  .movement {
+    position: relative;
+    padding: 160px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .movement-header {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 32px;
+    align-items: baseline;
+    margin-bottom: 64px;
+  }
+
+  .movement-num {
+    font-family: "Geist Mono", monospace;
+    font-size: 13px;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+  }
+
+  .movement-title {
+    font-family: "Geist", sans-serif;
+    font-weight: 500;
+    font-size: clamp(28px, 4vw, 48px);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--fg);
+  }
+
+  .movement-title .accent { color: var(--cyan); }
+
+  .movement-lede {
+    font-size: clamp(17px, 1.5vw, 21px);
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 680px;
+    margin-left: 112px;
+    margin-bottom: 64px;
+    font-weight: 300;
+  }
+
+  .movement-lede em {
+    color: var(--fg);
+    font-style: normal;
+  }
+
+  .movement-body {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 32px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.8;
+  }
+
+  .movement-body > div {
+    max-width: 680px;
+  }
+
+  .movement-body p + p { margin-top: 1.4em; }
+  .movement-body strong { color: var(--fg); font-weight: 500; }
+
+  /* ---------- ASTRONOMICAL CANVAS ---------- */
+  .astro-stage {
+    margin-top: 80px;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    padding: 60px 0;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(125, 211, 252, 0.03), transparent 70%);
+  }
+
+  .astro-canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 70vh;
+  }
+
+  #astroCanvas { width: 100%; height: 100%; display: block; }
+
+  .astro-readout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 40px;
+    padding: 0 32px;
+  }
+
+  .readout-cell {
+    border-left: 1px solid var(--hairline-strong);
+    padding-left: 20px;
+  }
+
+  .readout-label {
+    font-family: "Geist Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+
+  .readout-value {
+    font-family: "Geist Mono", monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readout-value .unit {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 14px;
+    margin-left: 4px;
+  }
+
+  .astro-hint {
+    text-align: center;
+    margin-top: 24px;
+    color: var(--dim);
+    font-family: "Geist Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- COGNITIVE / TWO CHARTS ---------- */
+  .cognitive-grid {
+    margin-top: 80px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--hairline-strong);
+    border: 1px solid var(--hairline-strong);
+  }
+
+  .chart-pane {
+    background: var(--canvas);
+    padding: 32px;
+    position: relative;
+  }
+
+  .pane-tag {
+    display: inline-block;
+    font-family: "Geist Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .pane-tag.bull { color: var(--cyan); }
+  .pane-tag.bear { color: var(--rose); }
+
+  .pane-headline {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 20px;
+    letter-spacing: -0.01em;
+  }
+
+  .pane-canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    margin-bottom: 20px;
+  }
+
+  .pane-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+
+  .pane-note {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    border-left: 1px solid var(--hairline-strong);
+    padding-left: 16px;
+  }
+
+  .cognitive-truth {
+    margin-top: 48px;
+    text-align: center;
+    padding: 60px 24px;
+    border: 1px solid var(--hairline);
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1.7;
+  }
+
+  .cognitive-truth em {
+    color: var(--fg);
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  /* ---------- THE GAP ---------- */
+  .gap-stage {
+    position: relative;
+    height: 100vh;
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  #gapCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .gap-content {
+    position: relative;
+    z-index: 5;
+    max-width: 880px;
+    padding: 0 32px;
+    text-align: center;
+  }
+
+  .gap-attribution {
+    margin-bottom: 32px;
+  }
+
+  .gap-quote {
+    font-size: clamp(24px, 3.4vw, 44px);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: var(--fg);
+  }
+
+  .gap-quote .glow {
+    color: var(--cyan);
+    font-weight: 400;
+  }
+
+  .gap-source {
+    margin-top: 32px;
+    color: var(--dim);
+  }
+
+  /* ---------- TRADING / TRIANGLE ---------- */
+  .trade-stage {
+    margin-top: 80px;
+    padding: 60px 0;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .trade-canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 70vh;
+  }
+
+  #tradeCanvas { width: 100%; height: 100%; display: block; }
+
+  .trade-legend {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 40px;
+    padding: 0 32px;
+  }
+
+  .legend-item {
+    border-left: 1px solid var(--hairline-strong);
+    padding-left: 20px;
+  }
+
+  .legend-label {
+    font-family: "Geist Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .legend-bull .legend-label { color: var(--cyan); }
+  .legend-bear .legend-label { color: var(--rose); }
+  .legend-truth .legend-label { color: var(--gold); }
+
+  .legend-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ---------- CLOSING ---------- */
+  .closing {
+    position: relative;
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 160px 32px;
+    overflow: hidden;
+  }
+
+  #closingCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .closing-content {
+    position: relative;
+    z-index: 5;
+    text-align: center;
+    max-width: 720px;
+  }
+
+  .closing-pretitle {
+    margin-bottom: 32px;
+  }
+
+  .closing-line {
+    font-size: clamp(24px, 3vw, 38px);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+    color: var(--fg);
+    margin-bottom: 24px;
+  }
+
+  .closing-line .em {
+    color: var(--cyan);
+    font-weight: 400;
+  }
+
+  .closing-foot {
+    margin-top: 96px;
+    color: var(--dim);
+  }
+
+  /* ---------- FOOTER ---------- */
+  .site-foot {
+    border-top: 1px solid var(--hairline);
+    padding: 40px 32px;
+    text-align: center;
+    color: var(--dim);
+    font-family: "Geist Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- ANIMATIONS ---------- */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scroll-pulse {
+    0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+    50% { opacity: 1; transform: scaleY(1); }
+  }
+
+  /* reveal on scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 1.2s var(--ease), transform 1.2s var(--ease);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 760px) {
+    .movement { padding: 100px 20px; }
+    .movement-header { grid-template-columns: 1fr; gap: 8px; margin-bottom: 32px; }
+    .movement-lede { margin-left: 0; }
+    .movement-body { grid-template-columns: 1fr; gap: 0; }
+    .cognitive-grid { grid-template-columns: 1fr; }
+    .astro-readout, .trade-legend { grid-template-columns: 1fr; gap: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<section class="hero">
+  <canvas id="starfield"></canvas>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow micro">a meditation in six movements · on perspective, distance, and the gap</div>
+    <h1 class="parallax-word" id="parallaxWord">
+      <span class="layer cyan" data-axis="-1">PARALLAX</span>
+      <span class="layer rose" data-axis="1">PARALLAX</span>
+      <span class="layer fg" data-axis="0">PARALLAX</span>
+    </h1>
+    <p class="hero-sub">
+      The displacement of an object viewed from two different positions.<br />
+      The gap between two views is not error. It is <em>depth</em>.
+    </p>
+  </div>
+  <div class="scroll-hint">scroll to begin</div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT I — THE WORD
+============================================================ -->
+<section class="movement reveal">
+  <div class="movement-header">
+    <div class="movement-num">I</div>
+    <h2 class="movement-title">The word, before it meant <span class="accent">anything</span>.</h2>
+  </div>
+  <p class="movement-lede">
+    From Greek <em>parallaxis</em> — alteration. The shift. The change of place.
+    A word coined for a problem astronomers had not yet solved: how do you measure the distance to a star you cannot reach?
+  </p>
+  <div class="movement-body">
+    <div></div>
+    <div>
+      <p>
+        You wait. You let the Earth carry you. In January, you mark a star's position against the void.
+        Six months later — the planet has swung 300 million kilometers across the sun — you measure again.
+        The star has moved. Not really; it is too far for that. <strong>You have moved</strong>, and the star, seen now from a different angle, betrays its distance through how much it appears to shift.
+      </p>
+      <p>
+        The shift is tiny. For our nearest stellar neighbor, less than one second of arc — an angle so small you could cover it with a pinhead held at arm's length.
+        From this near-nothing, we measured the size of the universe.
+      </p>
+      <p>
+        The gap between two views, applied honestly, became distance itself.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT II — ASTRONOMICAL
+============================================================ -->
+<section class="movement reveal">
+  <div class="movement-header">
+    <div class="movement-num">II</div>
+    <h2 class="movement-title">Geometry of a <span class="accent">distant point</span>.</h2>
+  </div>
+  <p class="movement-lede">
+    Drag the star. Watch the angle collapse. The further away truth lives, the smaller the parallax — and the more careful you must be to see it at all.
+  </p>
+
+  <div class="astro-stage">
+    <div class="astro-canvas-wrap">
+      <canvas id="astroCanvas"></canvas>
+    </div>
+    <div class="astro-readout">
+      <div class="readout-cell">
+        <div class="readout-label">parallax angle</div>
+        <div class="readout-value mono"><span id="readAngle">0.000</span><span class="unit">arcsec</span></div>
+      </div>
+      <div class="readout-cell">
+        <div class="readout-label">distance</div>
+        <div class="readout-value mono"><span id="readDist">0.00</span><span class="unit">parsec</span></div>
+      </div>
+      <div class="readout-cell">
+        <div class="readout-label">light-years</div>
+        <div class="readout-value mono"><span id="readLY">0.00</span><span class="unit">ly</span></div>
+      </div>
+    </div>
+    <div class="astro-hint">drag the star · or move your cursor</div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT III — COGNITIVE
+============================================================ -->
+<section class="movement reveal">
+  <div class="movement-header">
+    <div class="movement-num">III</div>
+    <h2 class="movement-title">Same data. <span class="accent">Two minds.</span></h2>
+  </div>
+  <p class="movement-lede">
+    The sky has parallax because observers stand in different places. <em>So do minds</em>.
+    Below, identical price action — the exact same candles, drawn from the same numbers — read by two traders. The bars don't move. The story does.
+  </p>
+
+  <div class="cognitive-grid">
+    <div class="chart-pane">
+      <div class="pane-tag bull mono">↑ BULL'S READ</div>
+      <div class="pane-headline">Higher low. Reload zone.</div>
+      <div class="pane-canvas-wrap"><canvas id="bullChart"></canvas></div>
+      <div class="pane-note">
+        Sees a textbook retest. Demand defended the prior breakout. Volume confirms accumulation. The dip is opportunity, the structure is intact, the trend has not been broken — only tested. Position size: full.
+      </div>
+    </div>
+    <div class="chart-pane">
+      <div class="pane-tag bear mono">↓ BEAR'S READ</div>
+      <div class="pane-headline">Lower high. Distribution.</div>
+      <div class="pane-canvas-wrap"><canvas id="bearChart"></canvas></div>
+      <div class="pane-note">
+        Sees a failed breakout, momentum waning, each push weaker than the last. The supposed support is just where late longs are trapped. The bounce is exit liquidity. Position size: short, scaling.
+      </div>
+    </div>
+  </div>
+
+  <div class="cognitive-truth">
+    Same forty-eight bars. Same volume. Same close.<br />
+    <em>Neither chart contains its own interpretation.</em><br />
+    Every price you have ever looked at was a question your prior beliefs answered for you.
+  </div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT IV — THE GAP
+============================================================ -->
+<section class="gap-stage reveal">
+  <canvas id="gapCanvas"></canvas>
+  <div class="gap-content">
+    <div class="gap-attribution micro">on the parallax view</div>
+    <p class="gap-quote">
+      &ldquo;There is no neutral ground from which to compare the two perspectives.<br />
+      <span class="glow">The truth resides in the gap between them.</span>&rdquo;
+    </p>
+    <p class="gap-source mono">— after Slavoj Žižek</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT V — TRADING
+============================================================ -->
+<section class="movement reveal">
+  <div class="movement-header">
+    <div class="movement-num">V</div>
+    <h2 class="movement-title">The market is a <span class="accent">parallax engine</span>.</h2>
+  </div>
+  <p class="movement-lede">
+    Every trade requires disagreement. A buyer who believes price will rise meets a seller who believes it will fall. <em>The price prints because they disagree</em>.
+    The market is not a thing you observe — it is the moving record of the gap between two views.
+  </p>
+
+  <div class="trade-stage">
+    <div class="trade-canvas-wrap">
+      <canvas id="tradeCanvas"></canvas>
+    </div>
+    <div class="trade-legend">
+      <div class="legend-item legend-bull">
+        <div class="legend-label">Bull line</div>
+        <div class="legend-text">Rising support. Each dip held. Belief: trend is intact, price is on sale.</div>
+      </div>
+      <div class="legend-item legend-bear">
+        <div class="legend-label">Bear line</div>
+        <div class="legend-text">Falling resistance. Each rally rejected. Belief: trend is exhausted, price is distribution.</div>
+      </div>
+      <div class="legend-item legend-truth">
+        <div class="legend-label">The apex</div>
+        <div class="legend-text">Where the two views can no longer coexist. Volatility collapses, then breaks one way. The parallax resolves into a direction.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="movement-body" style="margin-top:80px;">
+    <div></div>
+    <div>
+      <p>
+        The novice trader looks at a chart and asks: <em>is it going up or down?</em> — as if the chart itself contained the answer.
+      </p>
+      <p>
+        The serious trader holds two charts in their head simultaneously. They ask: <strong>where am I standing, and what am I refusing to see from here?</strong>
+        They learn to walk around their own conviction, look at it from the opposite side of the orbit, and measure the angle.
+      </p>
+      <p>
+        Edge is not in being right. Edge is in occupying enough vantage points to see depth where others see flatness.
+        The gap between your view and the consensus is not noise. <strong>It is the only place a trade can live.</strong>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOVEMENT VI — CLOSING
+============================================================ -->
+<section class="closing">
+  <canvas id="closingCanvas"></canvas>
+  <div class="closing-content">
+    <div class="closing-pretitle micro">VI · the practice</div>
+    <p class="closing-line">
+      Hold a position. Then walk to the other side of your own orbit.
+    </p>
+    <p class="closing-line">
+      Look back at it from there.
+    </p>
+    <p class="closing-line">
+      <span class="em">The gap is the trade.</span>
+    </p>
+    <div class="closing-foot micro">parallax · playbook</div>
+  </div>
+</section>
+
+<footer class="site-foot mono">
+  six movements · on the geometry of seeing
+</footer>
+
+<script>
+/* ================================================================
+   UTILITIES
+================================================================ */
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const TAU = Math.PI * 2;
+
+function fitCanvas(canvas) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+/* ================================================================
+   REVEAL ON SCROLL
+================================================================ */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    if (e.isIntersecting) {
+      e.target.classList.add("is-visible");
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+/* ================================================================
+   MOUSE PARALLAX ON HERO WORD
+================================================================ */
+(() => {
+  const word = document.getElementById("parallaxWord");
+  const layers = word.querySelectorAll(".layer");
+  let tx = 0, ty = 0, cx = 0, cy = 0;
+
+  window.addEventListener("mousemove", (e) => {
+    const rect = word.getBoundingClientRect();
+    tx = (e.clientX - (rect.left + rect.width / 2)) / window.innerWidth;
+    ty = (e.clientY - (rect.top + rect.height / 2)) / window.innerHeight;
+  });
+
+  function loop() {
+    cx = lerp(cx, tx, 0.06);
+    cy = lerp(cy, ty, 0.06);
+    layers.forEach((layer) => {
+      const axis = parseFloat(layer.dataset.axis);
+      const ox = cx * 24 * axis;
+      const oy = cy * 8 * axis;
+      layer.style.transform = `translate(${ox}px, ${oy}px)`;
+    });
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ================================================================
+   STARFIELD — three depth layers + mouse parallax
+================================================================ */
+(() => {
+  const canvas = document.getElementById("starfield");
+  let stars = [];
+  let mx = 0, my = 0, cmx = 0, cmy = 0;
+  let dims = { w: 0, h: 0 };
+
+  function init() {
+    const fit = fitCanvas(canvas);
+    dims = fit;
+    stars = [];
+    const total = Math.floor((fit.w * fit.h) / 4500);
+    for (let i = 0; i < total; i++) {
+      const depth = Math.random();
+      stars.push({
+        x: Math.random() * fit.w,
+        y: Math.random() * fit.h,
+        r: lerp(0.3, 1.6, depth) + (Math.random() < 0.04 ? 1.4 : 0),
+        depth,
+        twPhase: Math.random() * TAU,
+        twSpeed: lerp(0.4, 1.6, Math.random()),
+      });
+    }
+  }
+
+  window.addEventListener("resize", init);
+  window.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mx = (e.clientX - rect.left) / rect.width - 0.5;
+    my = (e.clientY - rect.top) / rect.height - 0.5;
+  });
+
+  init();
+
+  function draw(t) {
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { w, h } = dims;
+
+    // background gradient
+    const grad = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+    grad.addColorStop(0, "rgba(20, 26, 40, 0.6)");
+    grad.addColorStop(1, "rgba(6, 6, 10, 1)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    cmx = lerp(cmx, mx, 0.05);
+    cmy = lerp(cmy, my, 0.05);
+
+    for (const s of stars) {
+      const par = s.depth * 40;
+      const x = s.x - cmx * par;
+      const y = s.y - cmy * par;
+      const tw = 0.5 + 0.5 * Math.sin(t * 0.001 * s.twSpeed + s.twPhase);
+      const alpha = lerp(0.25, 0.95, s.depth) * tw;
+      ctx.beginPath();
+      ctx.fillStyle = s.depth > 0.85
+        ? `rgba(180, 220, 255, ${alpha})`
+        : `rgba(232, 234, 237, ${alpha})`;
+      ctx.arc(x, y, s.r, 0, TAU);
+      ctx.fill();
+
+      // glow on largest
+      if (s.r > 1.6) {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(125, 211, 252, ${alpha * 0.18})`;
+        ctx.arc(x, y, s.r * 4, 0, TAU);
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ================================================================
+   ASTRONOMICAL — Earth orbit, Star, parallax angle
+================================================================ */
+(() => {
+  const canvas = document.getElementById("astroCanvas");
+  if (!canvas) return;
+  const angleEl = document.getElementById("readAngle");
+  const distEl = document.getElementById("readDist");
+  const lyEl = document.getElementById("readLY");
+
+  let dims = { w: 0, h: 0 };
+  let starPos = { x: 0, y: 0 };  // relative to center
+  let starTarget = { x: 0, y: 0 };
+  let bgStars = [];
+  let dragging = false;
+
+  function init() {
+    const fit = fitCanvas(canvas);
+    dims = fit;
+    // initialize star ~70% to the right
+    starPos = { x: fit.w * 0.32, y: 0 };
+    starTarget = { ...starPos };
+    bgStars = [];
+    for (let i = 0; i < 140; i++) {
+      bgStars.push({
+        x: Math.random() * fit.w,
+        y: Math.random() * fit.h,
+        r: Math.random() * 0.9 + 0.2,
+        a: Math.random() * 0.6 + 0.1,
+        ph: Math.random() * TAU,
+      });
+    }
+  }
+  init();
+  window.addEventListener("resize", init);
+
+  // input handlers
+  function getMouse(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    return { x: cx - rect.width / 2, y: cy - rect.height / 2 };
+  }
+  canvas.addEventListener("mousedown", (e) => { dragging = true; starTarget = getMouse(e); });
+  window.addEventListener("mouseup", () => { dragging = false; });
+  canvas.addEventListener("mousemove", (e) => {
+    const m = getMouse(e);
+    if (dragging) starTarget = m;
+    else {
+      // soft attract: cursor influences without dragging
+      starTarget.x = lerp(dims.w * 0.32, m.x, clamp((Math.abs(m.x) / (dims.w * 0.4)), 0, 1) * 0.5);
+      starTarget.y = m.y * 0.4;
+    }
+  });
+  canvas.addEventListener("touchstart", (e) => {
+    const t = e.touches[0]; const rect = canvas.getBoundingClientRect();
+    starTarget = { x: t.clientX - rect.left - rect.width/2, y: t.clientY - rect.top - rect.height/2 };
+    dragging = true;
+  }, { passive: true });
+  canvas.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
+    const t = e.touches[0]; const rect = canvas.getBoundingClientRect();
+    starTarget = { x: t.clientX - rect.left - rect.width/2, y: t.clientY - rect.top - rect.height/2 };
+  }, { passive: true });
+  window.addEventListener("touchend", () => { dragging = false; });
+
+  function draw(t) {
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { w, h } = dims;
+    const cx = w / 2, cy = h / 2;
+
+    // background
+    ctx.fillStyle = "#06060a";
+    ctx.fillRect(0, 0, w, h);
+
+    // bg stars
+    for (const s of bgStars) {
+      const tw = 0.5 + 0.5 * Math.sin(t * 0.001 + s.ph);
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(232,234,237,${s.a * tw})`;
+      ctx.arc(s.x, s.y, s.r, 0, TAU);
+      ctx.fill();
+    }
+
+    // grid
+    ctx.strokeStyle = "rgba(232,234,237,0.04)";
+    ctx.lineWidth = 1;
+    const grid = 60;
+    for (let x = 0; x < w; x += grid) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += grid) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // smooth star follow
+    starPos.x = lerp(starPos.x, starTarget.x, 0.08);
+    starPos.y = lerp(starPos.y, starTarget.y, 0.08);
+    // clamp to keep on screen
+    starPos.x = clamp(starPos.x, -w * 0.45, w * 0.45);
+    starPos.y = clamp(starPos.y, -h * 0.42, h * 0.42);
+
+    // earth orbit baseline
+    const orbitR = Math.min(w, h) * 0.12;
+    // Sun position
+    const sun = { x: cx - orbitR * 1.3, y: cy };
+
+    // Earth positions: top of orbit ("January") and bottom ("July")
+    const earthA = { x: sun.x, y: sun.y - orbitR };
+    const earthB = { x: sun.x, y: sun.y + orbitR };
+
+    // Star absolute
+    const star = { x: cx + starPos.x, y: cy + starPos.y };
+
+    // ---- draw orbit
+    ctx.strokeStyle = "rgba(232,234,237,0.18)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.ellipse(sun.x, sun.y, orbitR, orbitR * 0.96, 0, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ---- 1 AU baseline label
+    ctx.strokeStyle = "rgba(232,234,237,0.22)";
+    ctx.beginPath();
+    ctx.moveTo(earthA.x + 8, earthA.y);
+    ctx.lineTo(earthB.x + 8, earthB.y);
+    ctx.stroke();
+    ctx.fillStyle = "#8a92a3";
+    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.textBaseline = "middle";
+    ctx.fillText("2 AU", earthA.x + 16, (earthA.y + earthB.y) / 2);
+
+    // ---- lines of sight (rose from January, cyan from July)
+    function losLine(from, to, color, glow) {
+      const grad = ctx.createLinearGradient(from.x, from.y, to.x, to.y);
+      grad.addColorStop(0, color + "ee");
+      grad.addColorStop(1, color + "11");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      if (glow) {
+        ctx.strokeStyle = color + "33";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      }
+    }
+    losLine(earthA, star, "#f87171", true);
+    losLine(earthB, star, "#7dd3fc", true);
+
+    // ---- compute parallax angle
+    const vAx = star.x - earthA.x, vAy = star.y - earthA.y;
+    const vBx = star.x - earthB.x, vBy = star.y - earthB.y;
+    const magA = Math.hypot(vAx, vAy);
+    const magB = Math.hypot(vBx, vBy);
+    const cosAng = clamp((vAx * vBx + vAy * vBy) / (magA * magB), -1, 1);
+    const angleRad = Math.acos(cosAng);
+    const angleDeg = angleRad * 180 / Math.PI;
+
+    // ---- arc at star apex
+    const angA = Math.atan2(earthA.y - star.y, earthA.x - star.x);
+    const angB = Math.atan2(earthB.y - star.y, earthB.x - star.x);
+    let aStart = angA, aEnd = angB;
+    // keep arc small
+    if (Math.abs(aEnd - aStart) > Math.PI) {
+      if (aStart < aEnd) aStart += TAU; else aEnd += TAU;
+    }
+    const arcR = clamp(magA * 0.18, 18, 60);
+    ctx.strokeStyle = "rgba(245,181,68,0.85)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, arcR, Math.min(aStart, aEnd), Math.max(aStart, aEnd));
+    ctx.stroke();
+    // angle label
+    const midA = (aStart + aEnd) / 2;
+    const lx = star.x + Math.cos(midA) * (arcR + 18);
+    const ly = star.y + Math.sin(midA) * (arcR + 18);
+    ctx.fillStyle = "#f5b544";
+    ctx.font = "11px 'Geist Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`∠ ${angleDeg.toFixed(2)}°`, lx, ly);
+    ctx.textAlign = "start";
+
+    // ---- sun
+    const sunGrad = ctx.createRadialGradient(sun.x, sun.y, 0, sun.x, sun.y, 22);
+    sunGrad.addColorStop(0, "rgba(255,220,140,1)");
+    sunGrad.addColorStop(0.4, "rgba(245,181,68,0.4)");
+    sunGrad.addColorStop(1, "rgba(245,181,68,0)");
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath(); ctx.arc(sun.x, sun.y, 22, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#ffd98a";
+    ctx.beginPath(); ctx.arc(sun.x, sun.y, 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#5a6072";
+    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.fillText("SUN", sun.x - 12, sun.y + 36);
+
+    // ---- earths
+    function earth(p, label, color) {
+      ctx.fillStyle = color + "33";
+      ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, TAU); ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#8a92a3";
+      ctx.font = "10px 'Geist Mono', monospace";
+      ctx.fillText(label, p.x - 26, p.y - 14);
+    }
+    earth(earthA, "JANUARY", "#f87171");
+    earth(earthB, "JULY", "#7dd3fc");
+
+    // ---- star
+    const pulse = 0.7 + 0.3 * Math.sin(t * 0.002);
+    const sg = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, 32);
+    sg.addColorStop(0, `rgba(232,234,237,${pulse})`);
+    sg.addColorStop(0.3, "rgba(125,211,252,0.5)");
+    sg.addColorStop(1, "rgba(125,211,252,0)");
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(star.x, star.y, 32, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(star.x, star.y, 2.4, 0, TAU); ctx.fill();
+    // little crosshair
+    ctx.strokeStyle = "rgba(232,234,237,0.4)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(star.x - 12, star.y); ctx.lineTo(star.x + 12, star.y);
+    ctx.moveTo(star.x, star.y - 12); ctx.lineTo(star.x, star.y + 12);
+    ctx.stroke();
+    ctx.fillStyle = "#5a6072";
+    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.fillText("TARGET", star.x + 14, star.y - 10);
+
+    // ---- readout
+    // map screen-distance to physical: when star is at right edge, ~10 parsec; closer, smaller
+    // here use a stylized scale: pixel distance from sun proportional to log distance
+    const px = Math.hypot(star.x - sun.x, star.y - sun.y);
+    const norm = clamp(px / (Math.min(w, h) * 0.42), 0.05, 1);
+    // arcsec — small angles, inverse distance
+    const arcsec = (1 / (norm * 12)) * 1.0; // stylized
+    const parsec = 1 / arcsec;
+    const ly = parsec * 3.262;
+
+    angleEl.textContent = arcsec.toFixed(3);
+    distEl.textContent = parsec.toFixed(2);
+    lyEl.textContent = ly.toFixed(2);
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ================================================================
+   COGNITIVE — same OHLC, two annotations
+================================================================ */
+(() => {
+  // Generate one shared deterministic OHLC dataset
+  const N = 48;
+  const data = [];
+  let p = 100;
+  // seedable PRNG
+  let seed = 0xC0DE;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  for (let i = 0; i < N; i++) {
+    const drift = Math.sin(i * 0.18) * 0.4;
+    const change = (rand() - 0.5) * 2.2 + drift;
+    const open = p;
+    const close = p + change;
+    const high = Math.max(open, close) + rand() * 1.1;
+    const low = Math.min(open, close) - rand() * 1.1;
+    data.push({ open, close, high, low });
+    p = close;
+  }
+
+  function drawChart(canvas, mode) {
+    if (!canvas) return;
+    function paint() {
+      const fit = fitCanvas(canvas);
+      const { ctx, w, h } = fit;
+      const padL = 36, padR = 16, padT = 16, padB = 28;
+      const innerW = w - padL - padR;
+      const innerH = h - padT - padB;
+
+      ctx.fillStyle = "#06060a";
+      ctx.fillRect(0, 0, w, h);
+
+      // y range
+      let mn = Infinity, mx = -Infinity;
+      for (const c of data) { mn = Math.min(mn, c.low); mx = Math.max(mx, c.high); }
+      const pad = (mx - mn) * 0.08;
+      mn -= pad; mx += pad;
+
+      // grid
+      ctx.strokeStyle = "rgba(232,234,237,0.05)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (innerH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+      }
+
+      // y labels
+      ctx.fillStyle = "#5a6072";
+      ctx.font = "9px 'Geist Mono', monospace";
+      for (let i = 0; i <= 4; i++) {
+        const v = mx - ((mx - mn) / 4) * i;
+        const y = padT + (innerH / 4) * i;
+        ctx.fillText(v.toFixed(0), 4, y + 3);
+      }
+
+      // candles
+      const cw = innerW / N;
+      const candleW = Math.max(2, cw * 0.55);
+      function yOf(v) { return padT + ((mx - v) / (mx - mn)) * innerH; }
+
+      for (let i = 0; i < N; i++) {
+        const c = data[i];
+        const cx = padL + cw * (i + 0.5);
+        const up = c.close >= c.open;
+        const col = up ? "rgba(180,200,220,0.9)" : "rgba(120,130,150,0.9)";
+        ctx.strokeStyle = col;
+        ctx.fillStyle = col;
+        ctx.lineWidth = 1;
+        // wick
+        ctx.beginPath();
+        ctx.moveTo(cx, yOf(c.high));
+        ctx.lineTo(cx, yOf(c.low));
+        ctx.stroke();
+        // body
+        const yo = yOf(c.open), yc = yOf(c.close);
+        const top = Math.min(yo, yc), hgt = Math.max(1, Math.abs(yc - yo));
+        if (up) {
+          ctx.fillStyle = "rgba(200,210,225,0.9)";
+          ctx.fillRect(cx - candleW / 2, top, candleW, hgt);
+        } else {
+          ctx.fillStyle = "#06060a";
+          ctx.fillRect(cx - candleW / 2, top, candleW, hgt);
+          ctx.strokeStyle = "rgba(140,150,165,0.9)";
+          ctx.strokeRect(cx - candleW / 2, top, candleW, hgt);
+        }
+      }
+
+      // overlay annotations
+      if (mode === "bull") {
+        // rising support trendline through 2 lows
+        const lowsIdx = [6, 28];
+        const p1 = { x: padL + cw * (lowsIdx[0] + 0.5), y: yOf(data[lowsIdx[0]].low) + 4 };
+        const p2 = { x: padL + cw * (lowsIdx[1] + 0.5), y: yOf(data[lowsIdx[1]].low) + 4 };
+        const dx = p2.x - p1.x; const dy = p2.y - p1.y;
+        const x0 = p1.x - dx * 0.4, y0 = p1.y - dy * 0.4;
+        const x1 = p2.x + dx * 0.6, y1 = p2.y + dy * 0.6;
+        ctx.strokeStyle = "rgba(125,211,252,0.85)";
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.setLineDash([]);
+        // markers
+        for (const i of lowsIdx) {
+          const cx = padL + cw * (i + 0.5);
+          ctx.strokeStyle = "rgba(125,211,252,0.9)";
+          ctx.fillStyle = "rgba(125,211,252,0.15)";
+          ctx.beginPath(); ctx.arc(cx, yOf(data[i].low) + 6, 6, 0, TAU); ctx.fill(); ctx.stroke();
+        }
+        // last bar tag
+        const lastX = padL + cw * (N - 0.5);
+        ctx.fillStyle = "#7dd3fc";
+        ctx.font = "10px 'Geist Mono', monospace";
+        ctx.fillText("HIGHER LOW", lastX - 78, yOf(data[N-1].close) - 12);
+      } else {
+        // falling resistance trendline through 2 highs
+        const highsIdx = [10, 32];
+        const p1 = { x: padL + cw * (highsIdx[0] + 0.5), y: yOf(data[highsIdx[0]].high) - 4 };
+        const p2 = { x: padL + cw * (highsIdx[1] + 0.5), y: yOf(data[highsIdx[1]].high) - 4 };
+        const dx = p2.x - p1.x; const dy = p2.y - p1.y;
+        const x0 = p1.x - dx * 0.4, y0 = p1.y - dy * 0.4;
+        const x1 = p2.x + dx * 0.6, y1 = p2.y + dy * 0.6;
+        ctx.strokeStyle = "rgba(248,113,113,0.85)";
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.setLineDash([]);
+        for (const i of highsIdx) {
+          const cx = padL + cw * (i + 0.5);
+          ctx.strokeStyle = "rgba(248,113,113,0.9)";
+          ctx.fillStyle = "rgba(248,113,113,0.15)";
+          ctx.beginPath(); ctx.arc(cx, yOf(data[i].high) - 6, 6, 0, TAU); ctx.fill(); ctx.stroke();
+        }
+        const lastX = padL + cw * (N - 0.5);
+        ctx.fillStyle = "#f87171";
+        ctx.font = "10px 'Geist Mono', monospace";
+        ctx.fillText("LOWER HIGH", lastX - 78, yOf(data[N-1].high) + 18);
+      }
+    }
+    paint();
+    window.addEventListener("resize", paint);
+  }
+
+  drawChart(document.getElementById("bullChart"), "bull");
+  drawChart(document.getElementById("bearChart"), "bear");
+})();
+
+/* ================================================================
+   THE GAP — two converging fields, glow between
+================================================================ */
+(() => {
+  const canvas = document.getElementById("gapCanvas");
+  if (!canvas) return;
+  let dims = { w: 0, h: 0 };
+  let particles = [];
+
+  function init() {
+    const fit = fitCanvas(canvas);
+    dims = fit;
+    particles = [];
+    const N = Math.floor((fit.w * fit.h) / 9000);
+    for (let i = 0; i < N; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      particles.push({
+        side,
+        x: fit.w * 0.5 + side * (Math.random() * fit.w * 0.5 + fit.w * 0.05),
+        y: Math.random() * fit.h,
+        vx: 0, vy: 0,
+        r: Math.random() * 1.2 + 0.3,
+        ph: Math.random() * TAU,
+      });
+    }
+  }
+  init();
+  window.addEventListener("resize", init);
+
+  function draw(t) {
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { w, h } = dims;
+
+    // base
+    ctx.fillStyle = "#06060a";
+    ctx.fillRect(0, 0, w, h);
+
+    // central glowing seam
+    const seamX = w / 2;
+    const seamGrad = ctx.createLinearGradient(seamX - 200, 0, seamX + 200, 0);
+    seamGrad.addColorStop(0, "rgba(125,211,252,0)");
+    seamGrad.addColorStop(0.5, "rgba(125,211,252,0.18)");
+    seamGrad.addColorStop(1, "rgba(125,211,252,0)");
+    ctx.fillStyle = seamGrad;
+    ctx.fillRect(seamX - 200, 0, 400, h);
+
+    // bright vertical line
+    const pulse = 0.6 + 0.4 * Math.sin(t * 0.0008);
+    ctx.strokeStyle = `rgba(180,220,255,${0.35 * pulse})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(seamX, 0); ctx.lineTo(seamX, h); ctx.stroke();
+
+    // particles drift inward toward seam
+    for (const p of particles) {
+      const targetX = seamX + p.side * 6;
+      const dx = targetX - p.x;
+      p.vx = lerp(p.vx, dx * 0.0008, 0.05);
+      p.vy = Math.sin(t * 0.0005 + p.ph) * 0.15;
+      p.x += p.vx;
+      p.y += p.vy;
+      // wrap
+      if (p.y < 0) p.y += h; if (p.y > h) p.y -= h;
+
+      const distToSeam = Math.abs(p.x - seamX);
+      const intensity = clamp(1 - distToSeam / (w * 0.5), 0, 1);
+      const col = p.side < 0 ? "248,113,113" : "125,211,252";
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${col}, ${0.15 + intensity * 0.5})`;
+      ctx.arc(p.x, p.y, p.r * (1 + intensity * 1.5), 0, TAU);
+      ctx.fill();
+
+      // line toward seam when near
+      if (distToSeam < w * 0.18) {
+        ctx.strokeStyle = `rgba(${col}, ${0.04 + intensity * 0.12})`;
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(seamX, p.y);
+        ctx.stroke();
+      }
+    }
+
+    // vignette
+    const vg = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h) * 0.7);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(6,6,10,0.85)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ================================================================
+   TRADE — converging trendlines, oscillating price, breakout
+================================================================ */
+(() => {
+  const canvas = document.getElementById("tradeCanvas");
+  if (!canvas) return;
+
+  let dims = { w: 0, h: 0 };
+  let phase = 0;
+  let breakoutT = 0;          // 0..1 progress past apex
+  let breakoutDir = 0;        // -1 or 1
+  const cycleLen = 14;        // seconds per full cycle
+
+  function init() {
+    const fit = fitCanvas(canvas);
+    dims = fit;
+  }
+  init();
+  window.addEventListener("resize", init);
+
+  function draw(t) {
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { w, h } = dims;
+
+    ctx.fillStyle = "#06060a";
+    ctx.fillRect(0, 0, w, h);
+
+    // grid
+    ctx.strokeStyle = "rgba(232,234,237,0.04)";
+    ctx.lineWidth = 1;
+    const gx = 60;
+    for (let x = 0; x < w; x += gx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += gx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // apex point — center-right
+    const apex = { x: w * 0.78, y: h * 0.5 };
+    const startX = w * 0.06;
+    const bullStartY = h * 0.78;
+    const bearStartY = h * 0.22;
+
+    // bull (rising support) and bear (falling resistance) lines
+    function drawLine(x0, y0, x1, y1, color, dashed) {
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, color + "22");
+      grad.addColorStop(0.7, color + "cc");
+      grad.addColorStop(1, color);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.6;
+      if (dashed) ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // glow
+      ctx.strokeStyle = color + "22";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+    drawLine(startX, bullStartY, apex.x, apex.y, "#7dd3fc", false);
+    drawLine(startX, bearStartY, apex.x, apex.y, "#f87171", false);
+
+    // shaded triangle interior
+    const triGrad = ctx.createLinearGradient(startX, h/2, apex.x, h/2);
+    triGrad.addColorStop(0, "rgba(245,181,68,0.0)");
+    triGrad.addColorStop(0.7, "rgba(245,181,68,0.06)");
+    triGrad.addColorStop(1, "rgba(245,181,68,0.18)");
+    ctx.fillStyle = triGrad;
+    ctx.beginPath();
+    ctx.moveTo(startX, bullStartY);
+    ctx.lineTo(apex.x, apex.y);
+    ctx.lineTo(startX, bearStartY);
+    ctx.closePath();
+    ctx.fill();
+
+    // generate price path that oscillates between the two lines, converging on apex
+    phase = (t / 1000) % cycleLen;
+    const cyclePct = phase / cycleLen;
+
+    // sample many points
+    const samples = 220;
+    const pts = [];
+    for (let i = 0; i <= samples; i++) {
+      const u = i / samples;            // 0..1 along width
+      const x = startX + (apex.x - startX) * u;
+      // bull line y at u
+      const bullY = bullStartY + (apex.y - bullStartY) * u;
+      const bearY = bearStartY + (apex.y - bearStartY) * u;
+      const mid = (bullY + bearY) / 2;
+      const halfW = (bullY - bearY) / 2;
+      // oscillation amplitude is the half-width — converging toward zero
+      // multiple frequencies
+      const animU = u - cyclePct * 1.0;
+      const osc =
+        Math.sin(u * 14 - phase * 1.6) * 0.7 +
+        Math.sin(u * 28 - phase * 2.3) * 0.25 +
+        Math.sin(u * 7 - phase * 0.8) * 0.15;
+      const y = mid - halfW * 0.86 * osc;
+      pts.push({ x, y });
+    }
+
+    // beyond apex — breakout segment (post-resolution)
+    // every cycle, randomize direction
+    const cycleIdx = Math.floor(t / 1000 / cycleLen);
+    const dirSeed = ((cycleIdx * 9301 + 49297) % 233280) / 233280;
+    breakoutDir = dirSeed > 0.5 ? -1 : 1;
+    // last 18% of cycle = breakout
+    const breakoutPct = clamp((cyclePct - 0.82) / 0.18, 0, 1);
+    if (breakoutPct > 0) {
+      const segs = 60;
+      const startBO = { x: apex.x, y: apex.y };
+      for (let i = 1; i <= segs; i++) {
+        const u = i / segs;
+        const x = apex.x + (w - apex.x) * u * breakoutPct;
+        const y = apex.y + breakoutDir * h * 0.32 * u * breakoutPct + Math.sin(u * 12 + phase) * 4;
+        pts.push({ x, y });
+      }
+    }
+
+    // draw price line
+    ctx.strokeStyle = "#e8eaed";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // glow
+    ctx.strokeStyle = "rgba(232,234,237,0.18)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // current price dot
+    const last = pts[pts.length - 1];
+    // pulsing
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
+    const dotColor = breakoutPct > 0 ? (breakoutDir > 0 ? "#7dd3fc" : "#f87171") : "#e8eaed";
+    ctx.fillStyle = dotColor + "33";
+    ctx.beginPath(); ctx.arc(last.x, last.y, 8 + pulse * 4, 0, TAU); ctx.fill();
+    ctx.fillStyle = dotColor;
+    ctx.beginPath(); ctx.arc(last.x, last.y, 3, 0, TAU); ctx.fill();
+
+    // labels
+    ctx.fillStyle = "#7dd3fc";
+    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.fillText("BULL · rising support", startX + 8, bullStartY + 18);
+    ctx.fillStyle = "#f87171";
+    ctx.fillText("BEAR · falling resistance", startX + 8, bearStartY - 8);
+    ctx.fillStyle = "#f5b544";
+    ctx.fillText("APEX", apex.x - 12, apex.y - 12);
+
+    // tiny "spread" readout — width between lines at the price's x
+    const u = clamp((last.x - startX) / (apex.x - startX), 0, 1);
+    const bullY = bullStartY + (apex.y - bullStartY) * u;
+    const bearY = bearStartY + (apex.y - bearStartY) * u;
+    const spread = Math.abs(bullY - bearY);
+    ctx.fillStyle = "#5a6072";
+    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.fillText(`SPREAD ${(spread).toFixed(0)}px`, w - 130, h - 14);
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ================================================================
+   CLOSING — slow drifting starfield, very calm
+================================================================ */
+(() => {
+  const canvas = document.getElementById("closingCanvas");
+  if (!canvas) return;
+  let dims = { w: 0, h: 0 };
+  let stars = [];
+
+  function init() {
+    const fit = fitCanvas(canvas);
+    dims = fit;
+    stars = [];
+    const N = Math.floor((fit.w * fit.h) / 6000);
+    for (let i = 0; i < N; i++) {
+      stars.push({
+        x: Math.random() * fit.w,
+        y: Math.random() * fit.h,
+        z: Math.random(),
+        r: Math.random() * 1.2 + 0.2,
+        ph: Math.random() * TAU,
+      });
+    }
+  }
+  init();
+  window.addEventListener("resize", init);
+
+  function draw(t) {
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { w, h } = dims;
+    ctx.fillStyle = "#06060a";
+    ctx.fillRect(0, 0, w, h);
+
+    // very subtle radial atmosphere
+    const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h) * 0.7);
+    grad.addColorStop(0, "rgba(20,28,44,0.5)");
+    grad.addColorStop(1, "rgba(6,6,10,1)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    for (const s of stars) {
+      // slow drift
+      s.x += (s.z - 0.5) * 0.05;
+      if (s.x < 0) s.x += w;
+      if (s.x > w) s.x -= w;
+      const tw = 0.5 + 0.5 * Math.sin(t * 0.0008 + s.ph);
+      const a = lerp(0.2, 0.9, s.z) * tw;
+      ctx.fillStyle = s.z > 0.85 ? `rgba(180,220,255,${a})` : `rgba(232,234,237,${a})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, TAU);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

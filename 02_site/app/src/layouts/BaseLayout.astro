@@ -1,0 +1,102 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string;
+  headline?: string;
+  description?: string;
+  type?: "website" | "article";
+  publishedTime?: Date;
+  keywords?: string[];
+  image?: string;
+  hideHeader?: boolean;
+  hideFooter?: boolean;
+}
+
+const SITE_NAME = "Parallax Playbook";
+const DEFAULT_DESCRIPTION =
+  "One post a day on quantum computing, consciousness, and mathematics — and where they meet. A sleek, quiet place to read about the edge of what's known.";
+
+const {
+  title = SITE_NAME,
+  headline,
+  description = DEFAULT_DESCRIPTION,
+  type = "website",
+  publishedTime,
+  keywords,
+  image,
+  hideHeader = false,
+  hideFooter = false,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImage = image ? new URL(image, Astro.site).toString() : undefined;
+
+const jsonLd =
+  type === "article"
+    ? {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        headline: headline ?? title,
+        description,
+        url: canonical,
+        datePublished: publishedTime?.toISOString(),
+        keywords: keywords?.join(", "),
+        ...(ogImage ? { image: ogImage } : {}),
+        author: { "@type": "Organization", name: SITE_NAME },
+        publisher: { "@type": "Organization", name: SITE_NAME },
+        isPartOf: { "@type": "Blog", name: SITE_NAME, url: new URL("/", Astro.site).toString() },
+      }
+    : {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: new URL("/", Astro.site).toString(),
+        description,
+      };
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {keywords && keywords.length > 0 && (
+      <meta name="keywords" content={keywords.join(", ")} />
+    )}
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0A0D12" />
+
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {type === "article" && publishedTime && (
+      <meta property="article:published_time" content={publishedTime.toISOString()} />
+    )}
+
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body class="min-h-screen flex flex-col">
+    {!hideHeader && <Header />}
+    <main class="flex-1">
+      <slot />
+    </main>
+    {!hideFooter && <Footer />}
+  </body>
+</html>

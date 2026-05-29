@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts", ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const TOPIC_LABEL: Record<string, string> = {
+  quantum: "Quantum",
+  consciousness: "Consciousness",
+  mathematics: "Mathematics",
+};
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const isFact = post.data.format === "fact";
+const words = post.body ? post.body.trim().split(/\s+/).length : 0;
+const readMins = Math.max(1, Math.round(words / 200));
+const sources = post.data.sources ?? [];
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+---
+
+<BaseLayout
+  title={`${post.data.title} — Parallax Playbook`}
+  headline={post.data.title}
+  description={post.data.description}
+  type="article"
+  publishedTime={post.data.date}
+  keywords={post.data.keywords}
+  image={post.data.image}
+>
+  <article class="mx-auto max-w-2xl px-6 sm:px-8 pt-16 pb-24" data-topic={post.data.topic}>
+    <a href="/posts" class="text-small font-mono text-muted hover:text-foreground no-underline">← ALL POSTS</a>
+
+    <header class="mt-10 mb-10">
+      <div class="flex items-center gap-3">
+        <span class="topic-tag">{TOPIC_LABEL[post.data.topic]}</span>
+        {isFact && <span class="fact-badge">Fact</span>}
+      </div>
+      <h1 class="text-4xl font-medium tracking-tight leading-tight mt-4 mb-5">
+        {post.data.title}
+      </h1>
+      <div class="flex items-center gap-3 text-small text-muted font-mono">
+        <time datetime={post.data.date.toISOString()}>{dateFmt.format(post.data.date)}</time>
+        <span aria-hidden="true">·</span>
+        <span>{isFact ? "Quick read" : `${readMins} min read`}</span>
+      </div>
+    </header>
+
+    <div class:list={["post-body", { "post-body--fact": isFact }]}>
+      <Content />
+    </div>
+
+    {sources.length > 0 && (
+      <section class="mt-14 pt-8 border-t border-hairline">
+        <p class="micro mb-5">References &amp; further reading</p>
+        <ol class="space-y-3">
+          {sources.map((s, i) => (
+            <li class="flex gap-3 text-small leading-relaxed">
+              <span class="text-muted font-mono shrink-0">{String(i + 1).padStart(2, "0")}</span>
+              <a href={s.url} target="_blank" rel="noopener noreferrer" class="text-foreground">
+                {s.title}
+                <span class="text-muted font-mono"> — {hostOf(s.url)} ↗</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    <footer class="mt-16 pt-8 border-t border-hairline flex items-center justify-between text-small font-mono text-muted">
+      <a href="/posts" class="hover:text-foreground no-underline">← ALL POSTS</a>
+      <a href="/" class="hover:text-foreground no-underline">PARALLAX PLAYBOOK</a>
+    </footer>
+  </article>
+</BaseLayout>

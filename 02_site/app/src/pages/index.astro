@@ -1,0 +1,294 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+const TOPIC_LABEL: Record<string, string> = {
+  quantum: "Quantum",
+  consciousness: "Consciousness",
+  mathematics: "Mathematics",
+};
+
+const posts = (await getCollection("posts", ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+
+const featured = posts[0];
+const archive = posts.slice(1);
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+const dayLabel = featured
+  ? dateFmt.format(featured.data.date).toUpperCase()
+  : "COMING SOON";
+---
+
+<BaseLayout hideHeader={true} hideFooter={false}>
+  <section class="hero" data-topic={featured?.data.topic}>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="top-rule" aria-hidden="true"></div>
+
+    <nav class="hero-nav" aria-label="Primary">
+      <a class="brand" href="/">◐ PARALLAX PLAYBOOK</a>
+      <div class="right">
+        <a href="/posts">POSTS</a>
+        <a href="/about">ABOUT</a>
+      </div>
+    </nav>
+    <p class="site-line">
+      Mind-bending findings from quantum computing, consciousness &amp; mathematics — explained simply, one a day.
+    </p>
+
+    <div class="stage">
+      {featured ? (
+        <a class="feature" href={`/posts/${featured.id}`}>
+          <div class="eyebrow">
+            <span class="line"></span>
+            <span>TODAY · {dayLabel}</span>
+            <span class="line"></span>
+          </div>
+          <span class="feature-tags">
+            <span class="topic-tag">{TOPIC_LABEL[featured.data.topic]}</span>
+            {featured.data.format === "fact" && <span class="fact-badge">Fact</span>}
+          </span>
+          <h1 class="feature-title">{featured.data.title}</h1>
+          <p class="feature-desc">{featured.data.description}</p>
+          <span class="feature-read">Read today's post →</span>
+        </a>
+      ) : (
+        <div class="feature">
+          <h1 class="feature-title">Parallax Playbook</h1>
+          <p class="feature-desc">
+            One post a day on quantum computing, consciousness, and mathematics —
+            and where they meet. The first transmission is coming soon.
+          </p>
+        </div>
+      )}
+    </div>
+
+    {archive.length > 0 && (
+      <a class="scroll-cue" href="#archive" aria-label="See the archive">↓</a>
+    )}
+
+    <div class="bottom-strip">
+      <span>EST. 2026 · A QUIET PLACE TO READ</span>
+      <span>QUANTUM · CONSCIOUSNESS · MATHEMATICS</span>
+    </div>
+  </section>
+
+  {archive.length > 0 && (
+    <section id="archive" class="mx-auto max-w-3xl px-6 sm:px-8 pt-24 pb-8">
+      <p class="micro mb-3">The archive</p>
+      <h2 class="text-2xl font-medium tracking-tight mb-10">Earlier transmissions</h2>
+      <ul class="divide-y divide-hairline border-t border-b border-hairline">
+        {archive.map((post) => (
+          <li data-topic={post.data.topic}>
+            <a
+              href={`/posts/${post.id}`}
+              class="group flex flex-col gap-2 py-7 no-underline"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <span class="flex items-center gap-3">
+                  <span class="topic-tag">{TOPIC_LABEL[post.data.topic]}</span>
+                  {post.data.format === "fact" && <span class="fact-badge">Fact</span>}
+                </span>
+                <time class="text-small text-muted font-mono" datetime={post.data.date.toISOString()}>
+                  {dateFmt.format(post.data.date)}
+                </time>
+              </div>
+              <span class="text-lg font-medium tracking-tight group-hover:text-accent transition-colors">
+                {post.data.title}
+              </span>
+              <span class="text-small text-muted leading-relaxed max-w-2xl">
+                {post.data.description}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <div class="mt-10">
+        <a href="/posts" class="text-small font-mono text-muted hover:text-foreground">VIEW ALL POSTS →</a>
+      </div>
+    </section>
+  )}
+</BaseLayout>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    overflow: hidden;
+    background: var(--color-canvas);
+    color: var(--color-foreground);
+  }
+
+  /* A single soft glow, tinted by the day's topic. The whole "visual". */
+  .atmosphere {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 44%, color-mix(in srgb, var(--topic, var(--color-accent)) 14%, transparent) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 60% at 50% 120%, rgba(120, 100, 200, 0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .top-rule {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16) 50%, transparent);
+    z-index: 2;
+  }
+
+  .hero-nav {
+    position: relative;
+    padding: 2rem 3rem 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.42);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 3;
+  }
+  .hero-nav .brand {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    letter-spacing: 0.2em;
+  }
+  .hero-nav .right { display: flex; gap: 26px; }
+  .hero-nav .right a {
+    color: rgba(255, 255, 255, 0.42);
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .hero-nav .right a:hover { color: rgba(255, 255, 255, 0.92); }
+
+  .site-line {
+    position: relative;
+    z-index: 3;
+    padding: 0.85rem 3rem 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.4);
+    max-width: 540px;
+  }
+
+  /* Centered stage — the post is the hero */
+  .stage {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem 4rem;
+  }
+  .feature {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 760px;
+    text-decoration: none;
+  }
+  .feature .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    margin-bottom: 26px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .feature .eyebrow .line {
+    display: inline-block;
+    width: 26px; height: 1px;
+    background: rgba(255, 255, 255, 0.32);
+  }
+  .feature-tags {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .feature-title {
+    font-size: clamp(2.4rem, 6vw, 4.4rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+    margin: 0;
+    color: var(--color-foreground);
+    text-wrap: balance;
+  }
+  a.feature:hover .feature-title { color: var(--topic, var(--color-accent)); transition: color 0.3s; }
+  .feature-desc {
+    margin-top: 26px;
+    font-size: clamp(1rem, 1.6vw, 1.2rem);
+    line-height: 1.6;
+    color: var(--color-muted);
+    max-width: 600px;
+  }
+  .feature-read {
+    margin-top: 34px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--topic, var(--color-accent));
+    transition: opacity 0.3s;
+  }
+  a.feature:hover .feature-read { opacity: 0.7; }
+
+  .scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: 4.2rem;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.35);
+    text-decoration: none;
+    z-index: 2;
+    animation: nudge 2.4s ease-in-out infinite;
+  }
+  .scroll-cue:hover { color: rgba(255, 255, 255, 0.8); }
+  @keyframes nudge {
+    0%, 100% { transform: translate(-50%, 0); opacity: 0.5; }
+    50% { transform: translate(-50%, 4px); opacity: 1; }
+  }
+
+  .bottom-strip {
+    position: relative;
+    padding: 1.25rem 3rem;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.18em;
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 3;
+  }
+
+  @media (max-width: 700px) {
+    .hero-nav { padding: 1.5rem 1.5rem 0; font-size: 9.5px; }
+    .site-line { padding: 0.7rem 1.5rem 0; font-size: 11px; }
+    .bottom-strip { padding: 1rem 1.5rem; font-size: 9px; gap: 1rem; }
+    .bottom-strip span:last-child { display: none; }
+    .scroll-cue { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-cue { animation: none; }
+  }
+</style>

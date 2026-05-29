@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parallax Playbook — Market Sessions Hero</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100;200;300;400;500&family=Geist+Mono:wght@400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  body {
+    background: #06060a;
+    color: #f5f5f7;
+    font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 300;
+    position: relative;
+  }
+
+  .atmosphere {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 50% 55%, rgba(60, 80, 130, 0.14) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 85%, rgba(140, 100, 180, 0.05) 0%, transparent 45%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 100px),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .top-rule {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18) 50%, transparent);
+    z-index: 2;
+  }
+
+  nav.header {
+    position: relative;
+    padding: 2rem 3rem;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.42);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 3;
+  }
+  nav.header .left { display: flex; gap: 16px; align-items: center; }
+  nav.header .brand { color: rgba(255, 255, 255, 0.9); }
+  nav.header .sep { color: rgba(255, 255, 255, 0.2); }
+  nav.header .right { display: flex; gap: 26px; }
+  nav.header .right a { color: rgba(255, 255, 255, 0.42); text-decoration: none; transition: color 0.3s; }
+  nav.header .right a:hover { color: rgba(255, 255, 255, 0.9); }
+
+  .hero-content {
+    position: absolute;
+    left: 3rem;
+    bottom: 3rem;
+    max-width: 420px;
+    z-index: 4;
+  }
+
+  .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .eyebrow .line {
+    display: inline-block;
+    width: 28px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .wordmark {
+    font-size: 68px;
+    font-weight: 200;
+    letter-spacing: -0.048em;
+    line-height: 0.92;
+  }
+
+  .parallax-word {
+    position: relative;
+    display: inline-block;
+  }
+  .parallax-word .ghost {
+    position: absolute;
+    top: 3px;
+    left: 6px;
+    color: rgba(245, 245, 247, 0.2);
+  }
+  .parallax-word .front {
+    position: relative;
+    color: #f5f5f7;
+  }
+
+  .playbook-word {
+    background: linear-gradient(180deg, #f5f5f7 0%, rgba(245, 245, 247, 0.42) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .playbook-period { color: #f5f5f7; }
+
+  .tagline {
+    margin-top: 20px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.55;
+    max-width: 380px;
+  }
+
+  .session-meta {
+    position: absolute;
+    right: 3rem;
+    bottom: 3rem;
+    text-align: right;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.42);
+    letter-spacing: 0.14em;
+    z-index: 4;
+  }
+  .session-meta .title {
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+  .session-meta .row { margin-bottom: 4px; }
+  .session-meta .status {
+    margin-top: 14px;
+    color: rgba(120, 255, 180, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .session-meta .status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(120, 255, 180, 0.85);
+    box-shadow: 0 0 8px rgba(120, 255, 180, 0.6);
+    animation: pulse 2.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  .globe-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -48%);
+    width: 560px;
+    height: 560px;
+    z-index: 1;
+  }
+  .globe-halo {
+    position: absolute;
+    inset: -100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(100, 140, 210, 0.09) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .globe-halo.outer {
+    inset: -180px;
+    background: radial-gradient(circle, rgba(80, 110, 180, 0.04) 0%, transparent 70%);
+  }
+  .globe-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    animation: breathe 14s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.012); }
+  }
+
+  .city-label {
+    position: absolute;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    line-height: 1.5;
+    z-index: 2;
+  }
+  .city-label .name { font-weight: 500; margin-bottom: 2px; letter-spacing: 0.2em; }
+  .city-label .status-text { color: rgba(255, 255, 255, 0.45); }
+
+  .label-ny {
+    left: calc(50% - 340px);
+    top: calc(50% - 40px);
+    text-align: right;
+    color: rgba(180, 215, 255, 0.55);
+  }
+  .label-ny .name { color: rgba(210, 235, 255, 0.95); }
+
+  .label-london {
+    right: calc(50% - 330px);
+    top: calc(50% - 130px);
+    color: rgba(240, 215, 170, 0.5);
+  }
+  .label-london .name { color: rgba(255, 235, 195, 0.88); }
+
+  .label-tokyo {
+    right: calc(50% - 315px);
+    top: calc(50% + 110px);
+    color: rgba(200, 180, 240, 0.42);
+  }
+  .label-tokyo .name { color: rgba(220, 200, 250, 0.75); }
+
+  .connector {
+    position: absolute;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    z-index: 2;
+  }
+  .connector-ny { width: 90px; left: calc(50% - 250px); top: calc(50% - 28px); }
+  .connector-london { width: 85px; right: calc(50% - 245px); top: calc(50% - 118px); }
+  .connector-tokyo { width: 80px; right: calc(50% - 235px); top: calc(50% + 118px); }
+
+  .bottom-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.25rem 3rem;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.18em;
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  @media (max-width: 900px) {
+    .globe-stage { width: 400px; height: 400px; }
+    .city-label { display: none; }
+    .connector { display: none; }
+    .wordmark { font-size: 52px; }
+    .hero-content { left: 1.5rem; bottom: 6rem; max-width: 85%; }
+    .session-meta { display: none; }
+    nav.header { padding: 1.5rem; font-size: 9.5px; }
+    nav.header .right { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="atmosphere"></div>
+<div class="grid-overlay"></div>
+<div class="top-rule"></div>
+
+<nav class="header">
+  <div class="left">
+    <span class="brand">◐ PP</span>
+    <span class="sep">/</span>
+    <span>PARALLAX PLAYBOOK</span>
+  </div>
+  <div class="right">
+    <a href="#">WRITING</a>
+    <a href="#">VIDEO</a>
+    <a href="#">EXPERIMENTS</a>
+    <a href="#">ABOUT</a>
+  </div>
+</nav>
+
+<div class="globe-stage">
+  <div class="globe-halo outer"></div>
+  <div class="globe-halo"></div>
+
+  <svg class="globe-svg" viewBox="0 0 560 560" aria-hidden="true">
+    <defs>
+      <radialGradient id="sphere-grad" cx="36%" cy="30%" r="75%">
+        <stop offset="0%" stop-color="#2e3a58" stop-opacity="1"/>
+        <stop offset="45%" stop-color="#141828" stop-opacity="1"/>
+        <stop offset="100%" stop-color="#06060a" stop-opacity="1"/>
+      </radialGradient>
+      <radialGradient id="rim-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="86%" stop-color="transparent"/>
+        <stop offset="95%" stop-color="rgba(150, 190, 240, 0.4)"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </radialGradient>
+      <radialGradient id="ny-glow">
+        <stop offset="0%" stop-color="rgba(150, 210, 255, 0.9)"/>
+        <stop offset="30%" stop-color="rgba(110, 170, 240, 0.5)"/>
+        <stop offset="100%" stop-color="rgba(80, 130, 210, 0)"/>
+      </radialGradient>
+      <radialGradient id="london-glow">
+        <stop offset="0%" stop-color="rgba(255, 230, 180, 0.6)"/>
+        <stop offset="40%" stop-color="rgba(220, 180, 120, 0.25)"/>
+        <stop offset="100%" stop-color="rgba(200, 150, 100, 0)"/>
+      </radialGradient>
+      <radialGradient id="tokyo-glow">
+        <stop offset="0%" stop-color="rgba(180, 140, 240, 0.3)"/>
+        <stop offset="50%" stop-color="rgba(140, 110, 200, 0.12)"/>
+        <stop offset="100%" stop-color="rgba(120, 100, 180, 0)"/>
+      </radialGradient>
+    </defs>
+
+    <circle cx="280" cy="280" r="240" fill="url(#sphere-grad)"/>
+    <circle cx="280" cy="280" r="240" fill="url(#rim-grad)"/>
+
+    <!-- latitude lines -->
+    <g stroke="rgba(180, 200, 230, 0.08)" stroke-width="0.7" fill="none">
+      <ellipse cx="280" cy="280" rx="240" ry="60"/>
+      <ellipse cx="280" cy="280" rx="240" ry="125"/>
+      <ellipse cx="280" cy="280" rx="240" ry="185"/>
+      <ellipse cx="280" cy="280" rx="240" ry="232"/>
+    </g>
+    <!-- longitude lines -->
+    <g stroke="rgba(180, 200, 230, 0.065)" stroke-width="0.7" fill="none">
+      <path d="M 140 60 Q 280 280 140 500"/>
+      <path d="M 195 30 Q 280 280 195 530"/>
+      <path d="M 280 20 L 280 540"/>
+      <path d="M 365 30 Q 280 280 365 530"/>
+      <path d="M 420 60 Q 280 280 420 500"/>
+    </g>
+
+    <!-- session light regions (layered for depth) -->
+    <!-- Tokyo (dark/closed — very subtle) -->
+    <ellipse cx="395" cy="265" rx="80" ry="45" fill="url(#tokyo-glow)" opacity="0.4"/>
+
+    <!-- London (closing) -->
+    <ellipse cx="290" cy="180" rx="95" ry="50" fill="url(#london-glow)" opacity="0.6"/>
+
+    <!-- New York (active, overlapping London) -->
+    <ellipse cx="230" cy="220" rx="130" ry="68" fill="url(#ny-glow)" opacity="0.75"/>
+
+    <!-- city dots with halos -->
+    <g>
+      <circle cx="220" cy="212" r="12" fill="rgba(140, 200, 255, 0.22)"/>
+      <circle cx="220" cy="212" r="4.5" fill="rgba(200, 230, 255, 0.98)"/>
+    </g>
+    <g>
+      <circle cx="295" cy="178" r="9" fill="rgba(255, 220, 170, 0.2)"/>
+      <circle cx="295" cy="178" r="3" fill="rgba(255, 240, 210, 0.85)"/>
+    </g>
+    <g>
+      <circle cx="400" cy="260" r="7" fill="rgba(200, 180, 240, 0.12)"/>
+      <circle cx="400" cy="260" r="2.3" fill="rgba(200, 180, 240, 0.55)"/>
+    </g>
+
+    <!-- subtle continental suggestions (very faint, abstract) -->
+    <g opacity="0.12" stroke="rgba(180, 210, 250, 0.4)" stroke-width="0.7" fill="none">
+      <path d="M 160 340 Q 210 355 250 340 Q 280 330 310 345"/>
+      <path d="M 180 385 Q 240 400 300 385 Q 340 375 370 385"/>
+      <path d="M 310 400 Q 350 395 385 400"/>
+    </g>
+  </svg>
+</div>
+
+<div class="connector connector-ny"></div>
+<div class="city-label label-ny">
+  <div class="name">◆ NEW YORK</div>
+  <div class="status-text">ACTIVE · 14:22 EST</div>
+</div>
+
+<div class="connector connector-london"></div>
+<div class="city-label label-london">
+  <div class="name">◆ LONDON</div>
+  <div class="status-text">CLOSING · 19:22 GMT</div>
+</div>
+
+<div class="connector connector-tokyo"></div>
+<div class="city-label label-tokyo">
+  <div class="name">◆ TOKYO</div>
+  <div class="status-text">DARK · 04:22 JST</div>
+</div>
+
+<div class="hero-content">
+  <div class="eyebrow">
+    <span class="line"></span>
+    <span>a site by —</span>
+  </div>
+  <div class="wordmark">
+    <div class="parallax-word">
+      <span class="ghost">Parallax</span>
+      <span class="front">Parallax</span>
+    </div>
+    <div>
+      <span class="playbook-word">Playbook</span><span class="playbook-period">.</span>
+    </div>
+  </div>
+  <div class="tagline">
+    The shift in perception, and what you do about it. Writing on trading, markets, and the psychology of both.
+  </div>
+</div>
+
+<div class="session-meta">
+  <div class="title">◐ GLOBAL SESSION</div>
+  <div class="row">LONDON / NEW YORK OVERLAP</div>
+  <div class="row">HIGHEST LIQUIDITY WINDOW</div>
+  <div class="status">
+    <span class="dot"></span>
+    <span>SYSTEM ACTIVE</span>
+  </div>
+</div>
+
+<div class="bottom-strip">
+  <span>EST. 2026 · LAT 40.7128° N</span>
+  <span>v0.1 — 2026.04.22</span>
+</div>
+
+</body>
+</html>
