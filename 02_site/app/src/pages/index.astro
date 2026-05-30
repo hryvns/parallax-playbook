@@ -1,7 +1,5 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import PostArt from "../components/PostArt.astro";
-import { postImage } from "../lib/postImage";
 import { getCollection } from "astro:content";
 
 const TOPIC_LABEL: Record<string, string> = {
@@ -81,39 +79,34 @@ const dayLabel = featured
   </section>
 
   {archive.length > 0 && (
-    <section id="archive" class="mx-auto max-w-5xl px-6 sm:px-8 pt-24 pb-8">
+    <section id="archive" class="mx-auto max-w-3xl px-6 sm:px-8 pt-24 pb-8">
       <p class="micro mb-3">The archive</p>
       <h2 class="text-2xl font-medium tracking-tight mb-10">Earlier transmissions</h2>
-      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {archive.map((post) => { const img = postImage(post.id); return (
+      <ul class="divide-y divide-hairline border-t border-b border-hairline">
+        {archive.map((post) => (
           <li data-topic={post.data.topic}>
             <a
               href={`/posts/${post.id}`}
-              class="group block h-full rounded-xl overflow-hidden border border-hairline bg-surface no-underline transition-colors hover:border-muted/50"
+              class="group flex flex-col gap-2 py-7 no-underline"
             >
-              {img ? (
-                <img src={img} alt="" class="aspect-[16/9] w-full object-cover" />
-              ) : (
-                <PostArt topic={post.data.topic} seed={post.id} class="aspect-[16/9]" />
-              )}
-              <div class="p-5">
-                <div class="flex items-center gap-3 mb-2">
+              <div class="flex items-center justify-between gap-4">
+                <span class="flex items-center gap-3">
                   <span class="topic-tag">{TOPIC_LABEL[post.data.topic]}</span>
                   {post.data.format === "fact" && <span class="fact-badge">Fact</span>}
-                </div>
-                <h3 class="text-lg font-medium tracking-tight leading-snug group-hover:text-accent transition-colors">
-                  {post.data.title}
-                </h3>
-                <p class="text-small text-muted leading-relaxed mt-2">
-                  {post.data.description}
-                </p>
-                <time class="block mt-3 text-small text-muted font-mono" datetime={post.data.date.toISOString()}>
+                </span>
+                <time class="text-small text-muted font-mono" datetime={post.data.date.toISOString()}>
                   {dateFmt.format(post.data.date)}
                 </time>
               </div>
+              <span class="text-lg font-medium tracking-tight group-hover:text-accent transition-colors">
+                {post.data.title}
+              </span>
+              <span class="text-small text-muted leading-relaxed max-w-2xl">
+                {post.data.description}
+              </span>
             </a>
           </li>
-        ); })}
+        ))}
       </ul>
       <div class="mt-10">
         <a href="/posts" class="text-small font-mono text-muted hover:text-foreground">VIEW ALL POSTS →</a>
