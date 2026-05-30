@@ -10,6 +10,7 @@ keywords:
   - automated theorem proving
   - DeepMind
   - formal proofs
+imagePrompt: "A luminous golden-ratio spiral and a constellation of glowing perfect geometric shapes — circles, triangles, intersecting curves, sacred geometry forms — orbiting and emerging from the silhouette of an artificial mind in profile, warm amber glow against a deep navy background, cinematic and hyper-detailed, no equations or symbols"
 sources:
   - title: "Google DeepMind: AI achieves silver-medal standard at the IMO (2024)"
     url: "https://deepmind.google/discover/blog/ai-solves-imo-problems-at-silver-medal-level/"

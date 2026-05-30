@@ -9,6 +9,7 @@ keywords:
   - nuclear fusion
   - the sun
   - stellar physics
+imagePrompt: "Extreme close-up of a colossal single sun completely filling the frame edge to edge, churning amber and orange plasma surface with detailed solar prominences and flares, intense radiant heat and corona reaching the image edges, deep navy space visible only as thin slivers in the corners, dramatic cinematic photorealistic detail, only ONE sun in the composition"
 sources:
   - title: "Quantum tunnelling — Wikipedia"
     url: "https://en.wikipedia.org/wiki/Quantum_tunnelling"

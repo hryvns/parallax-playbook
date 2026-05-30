@@ -21,6 +21,8 @@ const posts = defineCollection({
     format: z.enum(["article", "fact"]).default("article"),
     keywords: z.array(z.string()).optional(),
     image: z.string().optional(),
+    // Hand-crafted image concept for the AI generator (overrides auto-derivation).
+    imagePrompt: z.string().optional(),
     // Outbound references — rendered at the foot of the post and good for SEO.
     sources: z
       .array(z.object({ title: z.string(), url: z.string().url() }))

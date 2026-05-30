@@ -10,6 +10,7 @@ keywords:
   - arrow of time
   - second law of thermodynamics
   - entropy
+imagePrompt: "A massive translucent clock dial floating mid-air with its glowing hands sweeping backwards, surrounded by delicate spirals of cyan particle traces flowing inward to its centre, set in a vast dark chamber, dramatic volumetric cyan light from above, cinematic and hyper-detailed"
 sources:
   - title: "Lesovik et al., \"Arrow of time and its reversal on the IBM quantum computer,\" Scientific Reports (2019)"
     url: "https://doi.org/10.1038/s41598-019-40765-6"

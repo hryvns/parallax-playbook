@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import PostArt from "../../components/PostArt.astro";
+import { postImage } from "../../lib/postImage";
 import { getCollection, render } from "astro:content";
 
 export async function getStaticPaths() {
@@ -26,6 +28,7 @@ const isFact = post.data.format === "fact";
 const words = post.body ? post.body.trim().split(/\s+/).length : 0;
 const readMins = Math.max(1, Math.round(words / 200));
 const sources = post.data.sources ?? [];
+const heroImage = postImage(post.id) ?? post.data.image;
 
 const hostOf = (url: string) => {
   try {
@@ -43,12 +46,26 @@ const hostOf = (url: string) => {
   type="article"
   publishedTime={post.data.date}
   keywords={post.data.keywords}
-  image={post.data.image}
+  image={heroImage}
 >
   <article class="mx-auto max-w-2xl px-6 sm:px-8 pt-16 pb-24" data-topic={post.data.topic}>
     <a href="/posts" class="text-small font-mono text-muted hover:text-foreground no-underline">← ALL POSTS</a>
 
-    <header class="mt-10 mb-10">
+    {heroImage ? (
+      <img
+        src={heroImage}
+        alt={post.data.title}
+        class="aspect-[16/7] w-full object-cover rounded-xl border border-hairline mt-8"
+      />
+    ) : (
+      <PostArt
+        topic={post.data.topic}
+        seed={post.id}
+        class="aspect-[16/7] w-full rounded-xl overflow-hidden border border-hairline mt-8"
+      />
+    )}
+
+    <header class="mt-8 mb-10">
       <div class="flex items-center gap-3">
         <span class="topic-tag">{TOPIC_LABEL[post.data.topic]}</span>
         {isFact && <span class="fact-badge">Fact</span>}

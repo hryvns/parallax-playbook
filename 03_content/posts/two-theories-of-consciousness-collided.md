@@ -10,6 +10,7 @@ keywords:
   - global workspace theory
   - adversarial collaboration
   - neural correlates of consciousness
+imagePrompt: "Two silhouetted human profiles facing each other across a brilliant violet starburst of light at the centre, fine glowing neural filaments extending from each head into the dark void around them, deep navy background, cinematic moody symmetrical composition, hyper-detailed"
 sources:
   - title: "Cogitate Consortium, adversarial collaboration on theories of consciousness, Nature (2025)"
     url: "https://doi.org/10.1038/s41586-025-08888-1"
